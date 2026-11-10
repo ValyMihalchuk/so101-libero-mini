@@ -1,0 +1,5 @@
+{
+  "limit_deg": 2,
+  "scale": [4, 4, 4, 4, 4, 2],
+  "source": "docs/residual/results/calibration/selection.json and so101_libero/residual/calibration_residual_env.py"
+}
