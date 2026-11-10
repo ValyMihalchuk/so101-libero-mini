@@ -11,12 +11,33 @@ import numpy as np
 ROOT = Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT))
 sys.path.insert(0, str(ROOT / 'scripts'))
-from real.run_policy import RealRobotIO, CameraSetting, camera_ref, center_square_resize, Observation, JOINT_NAMES, MOTOR_NAMES
+from real.run_policy import (RealRobotIO, CameraSetting, Pacer, camera_ref, center_square_resize, go_home,
+                             Observation, JOINT_NAMES, MOTOR_NAMES)
 
 INSTRUCTION = 'Pick up the red cube and flip it onto its side.'
 MODEL = ROOT / 'docs/residual/results/calibration/no_leak/ppo/final_model.zip'
 CONFIG = ROOT / 'docs/residual/results/calibration/no_leak/ppo/config.json'
 SCALE = np.array([4, 4, 4, 4, 4, 2], np.float32)
+# SmolVLA routinely overshoots a limit slightly (e.g. gripper < 0 while squeezing the cube). Training clipped the
+# command in that case, as does real/run_policy.py; only a larger excursion is treated as a malfunction.
+BASE_SLACK = 5.0
+
+
+def load_residual_model(path=MODEL):
+    """Load the PPO policy for inference without unpickling numpy objects from the training machine.
+
+    The zip pickles its spaces and last rollout state with the cluster's NumPy 2.x, which NumPy 1.x
+    cannot unpickle. The spaces are rebuilt here exactly as CalibrationResidualEnv defines them;
+    the training-only state is dropped. The weights load from policy.pth, so a mismatch fails loudly.
+    """
+    import gymnasium as gym
+    from stable_baselines3 import PPO
+    custom = {
+        'observation_space': gym.spaces.Box(-np.inf, np.inf, (31,), dtype=np.float32),
+        'action_space': gym.spaces.Box(-1, 1, (6,), dtype=np.float32),
+        '_last_obs': None, '_last_episode_starts': None, 'ep_info_buffer': None, 'ep_success_buffer': None,
+    }
+    return PPO.load(path, device='cpu', custom_objects=custom)
 
 
 def parse_offset(spec):
@@ -57,7 +78,7 @@ class ResidualController:
         residual = np.clip(residual, -1, 1)
         raw = self.builder.base_action + np.float32(strength) * SCALE * residual
         command = np.clip(raw, self.builder.lo, self.builder.hi).astype(np.float32)
-        if np.any(np.abs(command - base) > SCALE + 1e-5):
+        if np.any(np.abs(command - np.clip(base, self.builder.lo, self.builder.hi)) > SCALE + 1e-5):
             raise RuntimeError('residual exceeds trained maximum')
         self.builder.previous_executed = command.copy()
         self.builder.previous_residual = residual.copy()
@@ -117,9 +138,13 @@ def arguments(argv=None):
     p.add_argument('--max-rel', type=float, default=100)
     p.add_argument('--log-dir', type=Path, default=ROOT/'docs/residual/real_robot')
     p.add_argument('--mock', action='store_true', help='offline fake robot and fake images')
+    p.add_argument('--return-home', action=argparse.BooleanOptionalAction, default=True,
+                   help='after --duration runs out, move smoothly to the home pose [0, -60, 35, 85, 0, 0] '
+                        '(not after an error or Ctrl-C, and never in --dry-run)')
+    p.add_argument('--home-seconds', type=float, default=3.0, help='duration of the return-home move')
     a = p.parse_args(argv)
-    if not 0 <= a.strength <= 1 or a.fps <= 0 or a.duration <= 0:
-        p.error('strength must be 0..1; fps and duration must be positive')
+    if not 0 <= a.strength <= 1 or a.fps <= 0 or a.duration <= 0 or a.home_seconds <= 0:
+        p.error('strength must be 0..1; fps, duration and home-seconds must be positive')
     a.offset = parse_offset(a.inject_offset)
     return a
 
@@ -132,13 +157,12 @@ def run(a, io=None, runner=None, model=None, bounds=None):
         env.close()
     lo, hi = bounds
     if model is None and a.mode == 'residual':
-        from stable_baselines3 import PPO
         if not MODEL.is_file():
             raise FileNotFoundError(MODEL)
         settings = json.loads(CONFIG.read_text())
         if settings['limit_deg'] != 2 or settings['scale'] != SCALE.tolist():
             raise RuntimeError('residual config does not match trained L=2 scale')
-        model = PPO.load(MODEL, device='cpu')
+        model = load_residual_model()
     if runner is None:
         from so101_libero.policy.runner import PolicyRunner
         runner = PolicyRunner(a.policy, device=a.device)
@@ -167,9 +191,14 @@ def run(a, io=None, runner=None, model=None, bounds=None):
     connected = False
     reason = 'completed'
     start = time.perf_counter()
+    pacer = None
+    returned_home = False
     try:
         io.connect(); connected = True
         runner.reset()
+        # Clock starts after connecting; Pacer never bursts to catch up after a slow chunk inference.
+        start = time.perf_counter()
+        pacer = Pacer(1.0 / a.fps)
         for step in range(round(a.duration*a.fps)):
             tic = time.perf_counter()
             obs = io.observe()
@@ -180,13 +209,14 @@ def run(a, io=None, runner=None, model=None, bounds=None):
             t0 = time.perf_counter()
             base = np.asarray(runner.act(policy_obs, INSTRUCTION), np.float32).reshape(6)
             infer_ms = 1000*(time.perf_counter()-t0)
-            if not np.all(np.isfinite(base)) or np.any(base < lo) or np.any(base > hi):
-                raise RuntimeError('SmolVLA action outside limits or nonfinite')
+            if not np.all(np.isfinite(base)) or np.any(base < lo-BASE_SLACK) or np.any(base > hi+BASE_SLACK):
+                raise RuntimeError(f'SmolVLA action nonfinite or more than {BASE_SLACK} outside limits: '
+                                   f'{np.round(base, 2).tolist()}')
             _, residual, final, raw = controller.step(state, base, a.strength)
             sent = final + a.offset
-            if np.any(raw < lo) or np.any(raw > hi) or np.any(sent < lo) or np.any(sent > hi):
-                raise RuntimeError('command outside joint limits')
-            if np.any(np.abs(sent-base) > SCALE+1e-5):
+            if np.any(sent < lo) or np.any(sent > hi):
+                raise RuntimeError(f'command outside joint limits: {np.round(sent, 2).tolist()}')
+            if np.any(np.abs(sent-np.clip(base, lo, hi)) > SCALE+1e-5):
                 raise RuntimeError('sent command differs from SmolVLA by more than trained maximum')
             if not a.dry_run:
                 io.command(sent)
@@ -195,8 +225,11 @@ def run(a, io=None, runner=None, model=None, bounds=None):
             frame = np.concatenate([center_square_resize(obs.images['front']),
                                     center_square_resize(obs.images['wrist'])], axis=1)
             writer.write(cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))
-            wait = (step+1)/a.fps - (time.perf_counter()-start)
-            if wait > 0: time.sleep(wait)
+            pacer.wait()
+        # Only after a full-duration rollout: a safety stop, error or Ctrl-C leaves the arm holding where it is.
+        if a.return_home and not a.dry_run:
+            go_home(io, fps=a.fps, seconds=a.home_seconds, max_step_deg=6.0, offsets=np.zeros(6))
+            returned_home = True
     except KeyboardInterrupt:
         reason = 'interrupted'
     except Exception as exc:
@@ -209,7 +242,8 @@ def run(a, io=None, runner=None, model=None, bounds=None):
             w=csv.writer(f); w.writerow(fields); w.writerows(rows)
         (trial/'summary.json').write_text(json.dumps({'mode':a.mode, 'strength':a.strength,
             'dry_run':a.dry_run, 'trial_id':a.trial_id, 'placement_id':a.placement_id,
-            'steps':len(rows), 'reason':reason, 'mean_hz':len(rows)/max(time.perf_counter()-start, 1e-9)}, indent=2)+'\n')
+            'steps':len(rows), 'reason':reason, 'mean_hz':len(rows)/max(time.perf_counter()-start, 1e-9),
+            'overruns':pacer.overruns if pacer else 0, 'returned_home':returned_home}, indent=2)+'\n')
     return rows
 
 

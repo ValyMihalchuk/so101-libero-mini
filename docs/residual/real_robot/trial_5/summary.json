@@ -1,0 +1,11 @@
+{
+  "mode": "residual",
+  "strength": 0.5,
+  "dry_run": false,
+  "trial_id": "trial_5",
+  "placement_id": "0",
+  "steps": 450,
+  "reason": "completed",
+  "mean_hz": 18.58004797831316,
+  "overruns": 13
+}

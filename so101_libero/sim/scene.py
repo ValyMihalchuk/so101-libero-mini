@@ -117,7 +117,11 @@ def build_spec(cfg: SceneConfig) -> mujoco.MjSpec:
     # Flat faces on flat faces (cylinder on table/tray, cube on round base) go through the general convex
     # collider, which returns ONE contact point: objects then rock, spin and sink. multiccd returns a contact
     # patch instead, so resting objects are actually at rest.
-    opt.enableflags |= mujoco.mjtEnableBit.mjENBL_MULTICCD
+    # MuJoCo <= 3.3 has it as an opt-in enable flag; later versions turn it on by default with a disable flag.
+    if hasattr(mujoco.mjtEnableBit, "mjENBL_MULTICCD"):
+        opt.enableflags |= mujoco.mjtEnableBit.mjENBL_MULTICCD
+    else:
+        opt.disableflags &= ~int(mujoco.mjtDisableBit.mjDSBL_MULTICCD)
     spec.visual.global_.offwidth = cfg.offscreen_size
     spec.visual.global_.offheight = cfg.offscreen_size
     spec.visual.quality.shadowsize = 4096

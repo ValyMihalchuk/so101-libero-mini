@@ -24,7 +24,10 @@ def test_unit_conversion_roundtrip():
 def test_scene_invariants(env_t1):
     m = env_t1.model
     assert m.opt.timestep * env_t1.cfg.substeps == pytest.approx(1 / 30)
-    assert m.opt.enableflags & mujoco.mjtEnableBit.mjENBL_MULTICCD
+    if hasattr(mujoco.mjtEnableBit, "mjENBL_MULTICCD"):
+        assert m.opt.enableflags & mujoco.mjtEnableBit.mjENBL_MULTICCD
+    else:
+        assert not m.opt.disableflags & mujoco.mjtDisableBit.mjDSBL_MULTICCD
     assert m.opt.cone == mujoco.mjtCone.mjCONE_ELLIPTIC
     cyl = m.geom("red_cylinder_geom")
     assert np.allclose(cyl.size[:2], [0.015, 0.015])  # 3 cm diameter x 3 cm tall

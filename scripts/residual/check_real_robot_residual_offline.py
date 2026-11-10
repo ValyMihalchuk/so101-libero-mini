@@ -5,10 +5,9 @@ import json
 import tempfile
 from pathlib import Path
 import numpy as np
-from stable_baselines3 import PPO
 from so101_libero.env import SO101TabletopEnv, EnvConfig
 from so101_libero.residual.calibration_no_leak_env import NoLeakCalibrationResidualEnv
-from scripts.residual.real_robot_residual import MODEL, ResidualController, arguments, run
+from scripts.residual.real_robot_residual import ResidualController, arguments, load_residual_model, run
 
 class FakeRunner:
     def reset(self): self.n = 0
@@ -17,6 +16,7 @@ class FakeRunner:
         return np.array([0, -60, 35, 85, 0, 25], np.float32)
 
 class FakeIO:
+    done = False
     def __init__(self, bias):
         self.state = np.array([0, -60, 35, 85, 0, 25], np.float32)
         self.bias = bias
@@ -35,7 +35,7 @@ def main():
     env = SO101TabletopEnv('cube_flip', EnvConfig(render=False))
     bounds = (env.action_space.low.copy(), env.action_space.high.copy())
     env.close()
-    model = PPO.load(MODEL, device='cpu')
+    model = load_residual_model()
     rng = np.random.default_rng(17)
     controller = ResidualController(*bounds, model=model)
     builder = object.__new__(NoLeakCalibrationResidualEnv)
@@ -65,12 +65,14 @@ def main():
                            '--trial-id',mode,'--log-dir',tmp,'--inject-offset','shoulder_pan:+1'])
             io = FakeIO(np.array([.5,0,0,0,0,0],np.float32))
             rows = run(a, io=io, runner=FakeRunner(), model=model, bounds=bounds)
-            assert len(rows) == 450 and len(io.sent) == 450
+            n_home = round(a.home_seconds*a.fps)
+            assert len(rows) == 450 and len(io.sent) == 450 + n_home
+            assert np.allclose(io.sent[-1], [0, -60, 35, 85, 0, 0])
             if mode == 'smolvla':
                 assert all(np.array_equal(np.asarray(row[21:27],np.float32)-a.offset,
                                           np.asarray(row[9:15],np.float32)) for row in rows)
             summary = json.loads((Path(tmp)/mode/'summary.json').read_text())
-            assert summary['steps'] == 450
+            assert summary['steps'] == 450 and summary['returned_home']
             assert (Path(tmp)/mode/'policy_view.mp4').stat().st_size > 0
     print(json.dumps({'parity_max_vector_error':max_vector,'parity_max_action_error':max_action,
                       'mock_steps_each_mode':450, 'mock': 'passed'}))
