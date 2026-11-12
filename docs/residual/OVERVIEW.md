@@ -1,4 +1,4 @@
-# Residual calibration project: colleague overview
+# Residual calibration project: overview
 
 *Status: 12 November 2026. Simulator results below; DAgger has not yet been tested on the real robot.*
 
