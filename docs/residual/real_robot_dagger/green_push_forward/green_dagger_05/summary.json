@@ -1,0 +1,18 @@
+{
+  "task": "green_push_forward",
+  "mode": "dagger",
+  "strength": 1.0,
+  "smolvla_repo": "tsangb34/smolvla_tri_green_push_100",
+  "smolvla_training_step": 80000,
+  "predictor_sha256": "923a48a362c8945cdb67b9b42b05af63abd6b5a1e68a871c7366b0bbdad5994c",
+  "policy": "/Users/sangnguyen/Documents/NUS_PhD/CourseCS6283/Projects/valentin-so101-libero-mini/outputs/deploy/smolvla_tri_green_push_100_080000_dagger",
+  "source_policy": "/Users/sangnguyen/Documents/NUS_PhD/CourseCS6283/Projects/valentin-so101-libero-mini/checkpoints/residual_green_push/checkpoints/last/pretrained_model",
+  "dry_run": false,
+  "trial_id": "green_dagger_05",
+  "placement_id": "unspecified",
+  "steps": 450,
+  "reason": "completed",
+  "mean_hz": 15.781711619898923,
+  "overruns": 18,
+  "returned_home": true
+}

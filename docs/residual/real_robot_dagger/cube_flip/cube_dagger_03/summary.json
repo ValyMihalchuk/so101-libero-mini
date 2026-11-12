@@ -1,0 +1,18 @@
+{
+  "task": "cube_flip",
+  "mode": "dagger",
+  "strength": 1.0,
+  "smolvla_repo": "tsangb34/smolvla_tri_cube_flip_100",
+  "smolvla_training_step": 100000,
+  "predictor_sha256": "9cb75b09aa511145aa7440f80b335165a42e8d370f6226648a395f90a65e4414",
+  "policy": "/Users/sangnguyen/Documents/NUS_PhD/CourseCS6283/Projects/valentin-so101-libero-mini/outputs/deploy/smolvla_tri_cube_flip_100_100000_dagger",
+  "source_policy": "/Users/sangnguyen/Documents/NUS_PhD/CourseCS6283/Projects/valentin-so101-libero-mini/checkpoints/smolvla_cube_flip/checkpoints/100000/pretrained_model",
+  "dry_run": false,
+  "trial_id": "cube_dagger_03",
+  "placement_id": "unspecified",
+  "steps": 450,
+  "reason": "completed",
+  "mean_hz": 15.348198787866458,
+  "overruns": 11,
+  "returned_home": true
+}

@@ -1,0 +1,18 @@
+{
+  "task": "cylinder_right_of_cube",
+  "mode": "dagger",
+  "strength": 1.0,
+  "smolvla_repo": "tsangb34/smolvla_tri_cylinder_right_100",
+  "smolvla_training_step": 80000,
+  "predictor_sha256": "152b056969db3dca56147fe11ea16a6c146b3ed5241a6b82da374ecdf9839126",
+  "policy": "/Users/sangnguyen/Documents/NUS_PhD/CourseCS6283/Projects/valentin-so101-libero-mini/outputs/deploy/smolvla_tri_cylinder_right_100_080000_dagger",
+  "source_policy": "/Users/sangnguyen/Documents/NUS_PhD/CourseCS6283/Projects/valentin-so101-libero-mini/checkpoints/residual_cylinder_right/checkpoints/080000/pretrained_model",
+  "dry_run": false,
+  "trial_id": "cylinder_dagger_02",
+  "placement_id": "unspecified",
+  "steps": 450,
+  "reason": "completed",
+  "mean_hz": 15.29453107607507,
+  "overruns": 12,
+  "returned_home": true
+}

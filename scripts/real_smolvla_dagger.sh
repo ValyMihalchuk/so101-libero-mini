@@ -23,7 +23,7 @@ case "$TASK_ID" in
     MODEL_NAME=smolvla_tri_cylinder_right_100
     STEP=080000
     EXPECTED_SHA=75a7b94279589d6940cc70565f8c4c1f0e36f641aada595919fdf0c16a01ad3d
-    DEFAULT_POLICY="$PROJECT_ROOT/checkpoints/residual_cylinder_right"
+    DEFAULT_POLICY="$PROJECT_ROOT/checkpoints/residual_cylinder_right/checkpoints/080000/pretrained_model"
     ;;
   *)
     echo "TASK_ID must be cube_flip, green_push_forward, or cylinder_right_of_cube" >&2
