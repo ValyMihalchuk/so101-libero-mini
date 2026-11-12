@@ -63,39 +63,3 @@ the real SO-101's errors.
    cylinder. The model and test choice were fixed before reading test
    outcomes.
 
-## What the follow-up experiments showed
-
-A tuned integral controller and a constant-offset Kalman filter also
-recovered **94–100/100** successes under constant offsets. Therefore the
-result is **not** that DAgger is needed for this simple error.
-
-We then tested backlash, gain errors, sudden offset jumps, cyclic
-position error, sensor latency, and severe reversal backlash. Results
-depended on the task and condition. One promising cylinder cyclic test
-favored DAgger over a constant-offset Kalman filter (97 vs 88/100), but a
-new, pre-registered 200-episode repeat gave 196 vs 190/200
-(exact paired p=0.146); a sinusoidal model-aware estimator reached
-195/200. This does not establish a reliable DAgger advantage over
-well-chosen classical estimators. Severe-backlash runs sometimes favored
-DAgger, but some needed corrections far beyond a plausible ±6° arm
-limit or damaged zero-error performance. Several load-sag and combined
-servo chains stopped at pre-specified feasibility gates before training.
-
-## Real-robot handoff
-
-The separate `real-robot-dagger` branch is based on Sang's working
-real-robot control commit. Its launcher uses the **constant-offset**
-round-3 10-step DAgger package for each task, not the later stress-test
-models. It verifies the SmolVLA and DAgger weight hashes and logs
-baseline and DAgger trials. It adds **no synthetic offset** to the robot.
-The first physical question is whether these models preserve normal task
-performance and whether any naturally occurring tracking error is
-corrected. The simulator counts above cannot answer that.
-
-Start with [DAGGER_RUNBOOK.md](real_robot/DAGGER_RUNBOOK.md) for commands,
-camera settings, dry-run behavior, and log locations. The companion
-[EXPERIMENT_MAP.md](EXPERIMENT_MAP.md) gives the training recipe and
-stress-test numbers. Full logs and per-episode records are in
-`docs/residual/NOTES.md` and `docs/residual/results/` on the
-`residual-rl` branch; only the locked deployment packages are copied
-to this real-robot branch.
