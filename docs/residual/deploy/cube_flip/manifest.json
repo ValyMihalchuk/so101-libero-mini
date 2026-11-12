@@ -1,0 +1,82 @@
+{
+  "task_id": "cube_flip",
+  "model_kind": "DAgger round-3 10-step offset predictor",
+  "source_predictor_10step_path": "docs/residual/results/dagger_cube_flip/round_3/predictor_10step.pt",
+  "predictor_10step_sha256": "9cb75b09aa511145aa7440f80b335165a42e8d370f6226648a395f90a65e4414",
+  "source_predictor_1step_path": "docs/residual/results/dagger_cube_flip/round_3/predictor_1step.pt",
+  "predictor_1step_sha256": "11a472e43a248742e38bdc7dd96eb89bd3cf464435642a95abb0dd02281949d8",
+  "smolvla_repo": "tsangb34/smolvla_tri_cube_flip_100",
+  "smolvla_training_step": 100000,
+  "smolvla_local_checkpoint": "checkpoints/smolvla_cube_flip/checkpoints/100000/pretrained_model",
+  "joint_order": [
+    "shoulder_pan",
+    "shoulder_lift",
+    "elbow_flex",
+    "wrist_flex",
+    "wrist_roll",
+    "gripper"
+  ],
+  "joint_units": [
+    "degrees",
+    "degrees",
+    "degrees",
+    "degrees",
+    "degrees",
+    "0..100 gripper units"
+  ],
+  "joint_target_low": [
+    -109.9998779296875,
+    -100.00004577636719,
+    -96.82986450195312,
+    -94.99983978271484,
+    -157.21102905273438,
+    0.0
+  ],
+  "joint_target_high": [
+    109.9998779296875,
+    100.00004577636719,
+    90.0,
+    94.99983978271484,
+    162.78933715820312,
+    100.0
+  ],
+  "joint_mid": [
+    0.0,
+    0.0,
+    -3.4149322509765625,
+    0.0,
+    2.789154052734375,
+    50.0
+  ],
+  "joint_half_range": [
+    109.9998779296875,
+    100.00004577636719,
+    93.41493225097656,
+    94.99983978271484,
+    160.00018310546875,
+    50.0
+  ],
+  "feature_count_per_step": 31,
+  "feature_list_in_order": [
+    "0:6 measured joint positions, normalized (state-mid)/half",
+    "6:12 current SmolVLA absolute target, normalized (base-mid)/half",
+    "12:18 previous commanded target, normalized (previous-mid)/half; at reset previous=state",
+    "18:24 previous commanded target minus measured joint, divided by half",
+    "24 current zero-based control-step index modulo 50, divided by 50",
+    "25:31 previous clipped normalized residual action (six values); zero at reset"
+  ],
+  "history_steps": 10,
+  "history_order": "oldest to newest; repeat first observation on the left at episode start",
+  "predictor_input_normalization": "(stacked_features-input_mean)/input_std; see normalization.json",
+  "predicted_offset_units": "degrees for the five arm joints",
+  "residual_arm_scale_deg": 4.0,
+  "gripper_residual_action": 0.0,
+  "residual_clip": [
+    -1.0,
+    1.0
+  ],
+  "correction_formula": "arm_correction_deg = 4 * clip(-predicted_offset_deg / 4, -1, 1)",
+  "simulator_preclips_command": true,
+  "control_hz": 30,
+  "smolvla_action_chunk_length": 50
+}
